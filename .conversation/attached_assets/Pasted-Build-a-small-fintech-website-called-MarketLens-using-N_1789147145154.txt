@@ -1,0 +1,120 @@
+Build a small fintech website called MarketLens using Next.js, TypeScript and Tailwind CSS.
+
+Purpose:
+Analyze current financial/geopolitical news and explain in simple terms how it may affect Oil, Gold, Stocks and Inflation.
+
+Use REAL API data.
+
+APIs:
+1. NewsAPI for current financial/geopolitical headlines
+2. Alpha Vantage for market data
+
+Environment variables:
+NEWS_API_KEY=
+ALPHA_VANTAGE_API_KEY=
+
+Never expose API keys in frontend code. Fetch them only through server-side API routes.
+
+Create 3 pages:
+
+1. Dashboard
+2. News
+3. Gold vs Stocks
+
+Dashboard:
+Show cards for:
+- Gold
+- S&P 500
+- Oil or an oil-market proxy
+- Geopolitical Risk
+
+Each card should show:
+- current value
+- daily change
+- last updated
+- data source
+
+News page:
+Fetch current news related to:
+- Iran
+- Strait of Hormuz
+- oil
+- war
+- sanctions
+- inflation
+- Federal Reserve
+- markets
+
+For every article show:
+- headline
+- source
+- published time
+- affected assets
+- simple market explanation
+
+Use a small rules-based analyzer.
+
+Example rules:
+
+If article mentions:
+"Strait of Hormuz", "oil supply", "tanker attack", or "shipping disruption"
+
+then:
+Oil = bullish
+Inflation = upward pressure
+Stocks = bearish
+Gold = mildly bullish
+
+If article mentions:
+"rate hike" or "higher interest rates"
+
+then:
+Gold = bearish
+Growth stocks = bearish
+USD = bullish
+
+If article mentions:
+"ceasefire"
+
+then:
+Oil = bearish
+Stocks = bullish
+Gold = mildly bearish
+
+Display:
+Strong Up
+Up
+Neutral
+Down
+Strong Down
+
+Do not claim predictions are certain.
+
+Gold vs Stocks page:
+Compare Gold and US Stocks based on:
+- geopolitical risk
+- inflation risk
+- interest rates
+- current news
+
+Show:
+- supportive factors
+- negative factors
+- risk level
+- educational explanation
+
+Add:
+"For educational purposes only. Not financial advice."
+
+If either API fails, show an error message instead of inventing data.
+
+Keep the app small.
+Do not add database, authentication, payments or OpenAI yet.
+
+Use reusable components:
+- Navbar
+- MarketCard
+- NewsCard
+- ImpactBadge
+
+Make the site responsive and make sure npm run build succeeds.
