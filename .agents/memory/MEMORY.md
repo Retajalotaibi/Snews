@@ -1,0 +1,1 @@
+- [Market data rate limits](market-data-rate-limits.md) — Alpha Vantage free-tier calls must stay serialized and cached server-side.

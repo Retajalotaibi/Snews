@@ -10,6 +10,10 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: market
+    description: Live market overview and comparison operations
+  - name: news
+    description: Current financial and geopolitical news
 paths:
   /healthz:
     get:
@@ -24,6 +28,72 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /market/overview:
+    get:
+      operationId: getMarketOverview
+      tags: [market]
+      summary: Get live market overview
+      description: Returns live prices for gold, the S&P 500, oil, and a rules-based geopolitical risk level.
+      responses:
+        "200":
+          description: Live market overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketOverview"
+        "502":
+          description: Upstream market data unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /market/comparison:
+    get:
+      operationId: getMarketComparison
+      tags: [market]
+      summary: Compare gold and US stocks
+      description: Explains the current relative case for gold and US stocks using live market and news context.
+      responses:
+        "200":
+          description: Gold versus stocks comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarketComparison"
+        "502":
+          description: Upstream data unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /news:
+    get:
+      operationId: getNews
+      tags: [news]
+      summary: Get current financial and geopolitical news
+      description: Returns current news and simple rules-based explanations of possible market impact.
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 8
+      responses:
+        "200":
+          description: Current news
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsResponse"
+        "502":
+          description: News service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +103,174 @@ components:
           type: string
       required:
         - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    MarketAsset:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        symbol:
+          type: string
+        value:
+          type: number
+        formattedValue:
+          type: string
+        change:
+          type: number
+        changePercent:
+          type: number
+        lastUpdated:
+          type: string
+        source:
+          type: string
+        status:
+          type: string
+          enum: [up, down, neutral]
+      required:
+        - id
+        - name
+        - symbol
+        - value
+        - formattedValue
+        - change
+        - changePercent
+        - lastUpdated
+        - source
+        - status
+    MarketOverview:
+      type: object
+      properties:
+        updatedAt:
+          type: string
+        assets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarketAsset"
+        geopoliticalRisk:
+          type: string
+          enum: [low, moderate, elevated, high]
+        geopoliticalRiskScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        geopoliticalRiskLabel:
+          type: string
+        riskDrivers:
+          type: array
+          items:
+            type: string
+      required:
+        - updatedAt
+        - assets
+        - geopoliticalRisk
+        - geopoliticalRiskScore
+        - geopoliticalRiskLabel
+        - riskDrivers
+    NewsImpact:
+      type: object
+      properties:
+        asset:
+          type: string
+        direction:
+          type: string
+          enum: [strong-up, up, neutral, down, strong-down]
+      required:
+        - asset
+        - direction
+    NewsArticle:
+      type: object
+      properties:
+        id:
+          type: string
+        headline:
+          type: string
+        source:
+          type: string
+        url:
+          type: string
+        publishedAt:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        affectedAssets:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+        impacts:
+          type: array
+          items:
+            $ref: "#/components/schemas/NewsImpact"
+      required:
+        - id
+        - headline
+        - source
+        - url
+        - publishedAt
+        - imageUrl
+        - affectedAssets
+        - explanation
+        - impacts
+    NewsResponse:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/NewsArticle"
+        updatedAt:
+          type: string
+        query:
+          type: string
+      required:
+        - articles
+        - updatedAt
+        - query
+    MarketComparison:
+      type: object
+      properties:
+        updatedAt:
+          type: string
+        goldScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        stocksScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        favored:
+          type: string
+          enum: [gold, stocks, balanced]
+        riskLevel:
+          type: string
+          enum: [low, moderate, elevated, high]
+        supportiveFactors:
+          type: array
+          items:
+            type: string
+        negativeFactors:
+          type: array
+          items:
+            type: string
+        explanation:
+          type: string
+      required:
+        - updatedAt
+        - goldScore
+        - stocksScore
+        - favored
+        - riskLevel
+        - supportiveFactors
+        - negativeFactors
+        - explanation
 

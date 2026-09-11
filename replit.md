@@ -1,6 +1,6 @@
-# [Project name]
+# MarketLens
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+MarketLens turns live financial and geopolitical news into plain-English context for oil, gold, US stocks, and inflation.
 
 ## Run & Operate
 
@@ -9,7 +9,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- Required secrets: `NEWS_API_KEY`, `ALPHA_VANTAGE_API_KEY`
 
 ## Stack
 
@@ -22,23 +22,32 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/marketlens/src/` — React pages, reusable market/news components, and theme
+- `artifacts/api-server/src/lib/marketlens.ts` — server-only NewsAPI/Alpha Vantage clients and rules-based analysis
+- `artifacts/api-server/src/routes/marketlens.ts` — live overview, comparison, and news endpoints
+- `lib/api-spec/openapi.yaml` — source of truth for the shared API contract
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- API keys are read only by the API server; the browser uses generated React Query hooks against `/api`.
+- Gold, S&P 500, and oil are represented by the GLD, SPY, and USO Alpha Vantage quote proxies.
+- News impact is intentionally rules-based and labels scenarios as possible effects, never predictions.
+- Alpha Vantage requests are queued and cached in memory to respect the free plan burst limit.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Overview page with live market cards and a geopolitical risk read
+- News desk with current headlines, affected assets, and simple impact badges
+- Gold vs stocks comparison with supportive factors, negative factors, risk level, and educational framing
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the app small and avoid database, authentication, payments, and AI additions unless explicitly requested.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Alpha Vantage free keys enforce roughly one request per second and a daily quota; preserve the server-side queue and cache when changing market data access.
+- If either upstream service fails, show the error state rather than inventing market data.
 
 ## Pointers
 

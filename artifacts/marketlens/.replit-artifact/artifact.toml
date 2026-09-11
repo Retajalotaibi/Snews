@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "MarketLens"
+description = "A live financial and geopolitical news dashboard that explains how current events may affect oil, gold, stocks, and inflation in simple terms."
+version = "1.0.0"
+id = "artifacts/marketlens"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24915
+
+[services.development]
+run = "pnpm --filter @workspace/marketlens run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/marketlens", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/marketlens/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24915"
+BASE_PATH = "/"
