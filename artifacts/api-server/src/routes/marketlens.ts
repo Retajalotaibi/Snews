@@ -5,7 +5,7 @@ import {
   getMarketOverview,
   getNews,
   logMarketlensError,
-} from "../lib/marketlens";
+} from "../lib/marketlens.js";
 
 const router: IRouter = Router();
 

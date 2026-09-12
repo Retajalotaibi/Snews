@@ -1,9 +1,9 @@
-import { logger } from "./logger";
+import { logger } from "./logger.js";
 import {
   readNewsSnapshot,
   writeNewsSnapshot,
   type NewsSnapshotValue,
-} from "./news-snapshot";
+} from "./news-snapshot.js";
 
 export type Direction =
   | "strong-up"

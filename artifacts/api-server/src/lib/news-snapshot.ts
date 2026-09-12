@@ -1,6 +1,6 @@
 import { MongoClient } from "mongodb";
-import type { NewsArticle } from "./marketlens";
-import { logger } from "./logger";
+import type { NewsArticle } from "./marketlens.js";
+import { logger } from "./logger.js";
 
 export type NewsSnapshotValue = {
   articles: NewsArticle[];
