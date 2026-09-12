@@ -3,9 +3,9 @@ import crypto from "node:crypto";
 if (!globalThis.crypto) {
   (globalThis as any).crypto = crypto.webcrypto || crypto;
 }
-import app from "./app.js";
-import { logger } from "./lib/logger.js";
-import { checkDbConnection } from "./lib/news-snapshot.js";
+import app from "./app";
+import { logger } from "./lib/logger";
+import { checkDbConnection } from "./lib/news-snapshot";
 
 const rawPort = process.env["PORT"] || "5001";
 const port = Number(rawPort);
