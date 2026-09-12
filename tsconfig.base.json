@@ -7,7 +7,7 @@
     "moduleResolution": "bundler",
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
-    "noEmitOnError": true,
+    "noEmitOnError": false,
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": false,
     "noImplicitReturns": true,
