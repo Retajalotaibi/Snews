@@ -53,7 +53,7 @@
   --secondary: 35 31% 90%;
   --secondary-foreground: 205 31% 18%;
   --muted: 39 23% 89%;
-  --muted-foreground: 205 13% 43%;
+  --muted-foreground: 205 22% 28%;
   --accent: 18 76% 55%;
   --accent-foreground: 42 33% 97%;
   --destructive: 4 67% 46%;
@@ -85,7 +85,7 @@
   --secondary: 205 19% 22%;
   --secondary-foreground: 42 33% 94%;
   --muted: 205 20% 21%;
-  --muted-foreground: 42 15% 68%;
+  --muted-foreground: 42 20% 78%;
   --accent: 18 76% 60%;
   --accent-foreground: 205 31% 10%;
   --destructive: 4 67% 57%;
@@ -94,9 +94,11 @@
 
 @layer base {
   * { @apply border-border; }
-  html { scroll-behavior: smooth; }
+  html { scroll-behavior: smooth; font-size: 16px; }
   body {
     @apply font-sans antialiased bg-background text-foreground;
+    font-size: 1rem;
+    line-height: 1.65;
     background-image: radial-gradient(hsl(var(--foreground) / .055) .6px, transparent .6px);
     background-size: 7px 7px;
   }
