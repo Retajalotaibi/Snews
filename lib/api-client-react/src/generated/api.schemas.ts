@@ -72,6 +72,18 @@ export const NewsImpactDirection = {
 export interface NewsImpact {
   asset: string;
   direction: NewsImpactDirection;
+  /**
+     * @minimum -100
+     * @maximum 100
+     */
+  score: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  rationale: string;
+  whatWouldChangeView: string;
 }
 
 export interface NewsArticle {
@@ -84,6 +96,7 @@ export interface NewsArticle {
   imageUrl: string | null;
   affectedAssets: string[];
   explanation: string;
+  whatWouldChangeView: string;
   impacts: NewsImpact[];
 }
 

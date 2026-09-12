@@ -10,6 +10,10 @@ export type Direction =
 export type NewsImpact = {
   asset: string;
   direction: Direction;
+  score: number;
+  confidence: number;
+  rationale: string;
+  whatWouldChangeView: string;
 };
 
 export type NewsArticle = {
@@ -21,6 +25,7 @@ export type NewsArticle = {
   imageUrl: string | null;
   affectedAssets: string[];
   explanation: string;
+  whatWouldChangeView: string;
   impacts: NewsImpact[];
 };
 
@@ -46,6 +51,8 @@ type AlphaVantageQuote = {
 
 type NewsApiArticle = {
   title?: string;
+  description?: string | null;
+  content?: string | null;
   url?: string;
   publishedAt?: string;
   urlToImage?: string | null;
@@ -53,7 +60,7 @@ type NewsApiArticle = {
 };
 
 const NEWS_QUERY =
-  '(Iran OR "Strait of Hormuz" OR oil OR war OR sanctions OR inflation OR "Federal Reserve" OR markets)';
+  '(oil OR crude OR Brent OR WTI OR OPEC OR "energy prices" OR "energy stocks" OR gasoline OR fuel OR "Strait of Hormuz" OR tanker OR shipping OR sanctions OR Iran OR war OR conflict OR ceasefire OR tariffs OR "trade war" OR inflation OR CPI OR PPI OR "Federal Reserve" OR Fed OR "interest rates" OR "rate hike" OR "rate cut" OR Treasury OR bonds OR yields OR dollar OR USD OR "S&P 500" OR Nasdaq OR equities OR earnings OR recession OR GDP OR "jobs report")';
 const ALPHA_REQUEST_GAP_MS = 1_100;
 const QUOTE_CACHE_TTL_MS = 5 * 60 * 1_000;
 const NEWS_CACHE_TTL_MS = 2 * 60 * 1_000;
@@ -147,78 +154,399 @@ function parseQuote(
   };
 }
 
-function analyzeArticle(title: string): {
+type ImpactSignal = Omit<NewsImpact, "direction">;
+
+type ArticleAnalysis = {
   affectedAssets: string[];
   impacts: NewsImpact[];
   explanation: string;
-} {
+  whatWouldChangeView: string;
+} | null;
+
+function directionForScore(score: number): Direction {
+  if (score >= 70) return "strong-up";
+  if (score >= 20) return "up";
+  if (score <= -70) return "strong-down";
+  if (score <= -20) return "down";
+  return "neutral";
+}
+
+function addImpact(
+  impacts: Map<string, ImpactSignal>,
+  signal: ImpactSignal,
+) {
+  const existing = impacts.get(signal.asset);
+  if (!existing) {
+    impacts.set(signal.asset, signal);
+    return;
+  }
+
+  const combinedScore = Math.max(
+    -100,
+    Math.min(100, existing.score + Math.round(signal.score * 0.35)),
+  );
+  impacts.set(signal.asset, {
+    ...signal,
+    score: combinedScore,
+    confidence: Math.max(existing.confidence, signal.confidence),
+  });
+}
+
+function analyzeArticle(title: string): ArticleAnalysis {
   const normalized = title.toLowerCase();
-  const impacts = new Map<string, Direction>();
-  const affectedAssets = new Set<string>();
-
-  if (
-    /strait of hormuz|oil supply|tanker attack|shipping disruption|supply disruption/.test(
+  const clearlyIrrelevant =
+    /\bresale\b|\bwalmart\b|\bfree shipping\b|\bdogs?\b|\bcats?\b|\brecipe\b|\bcelebrity\b|\bactor\b|\bactress\b|\bmovie\b|\bconcert\b|\btoy\b|\brecall(ed|s)?\b|\bpypi\b|\bmcp\b|\bpackage\b|\bsoftware\b|\bdeveloper\b|\bgrocery\b|\bshelves\b/.test(
       normalized,
-    )
-  ) {
-    impacts.set("Oil", "strong-up");
-    impacts.set("Inflation", "up");
-    impacts.set("Stocks", "down");
-    impacts.set("Gold", "up");
-    affectedAssets.add("Oil");
-    affectedAssets.add("Inflation");
-    affectedAssets.add("Stocks");
-    affectedAssets.add("Gold");
-  }
+    );
+  if (clearlyIrrelevant) return null;
 
-  if (/rate hike|higher interest rates|interest rate/.test(normalized)) {
-    impacts.set("Gold", "down");
-    impacts.set("Growth stocks", "down");
-    impacts.set("USD", "up");
-    affectedAssets.add("Gold");
-    affectedAssets.add("Growth stocks");
-    affectedAssets.add("USD");
-  }
+  const hasMarketContext =
+    /\boil\b|crude|brent|wti|opec|energy|\bgold\b|\bstocks?\b|\bnasdaq\b|s&p|equities|\bmarket\b|\binflation\b|\bcpi\b|\bppi\b|\bfed\b|federal reserve|interest rate|yield|treasury|\bbonds?\b|\bdollar\b|\busd\b|\btariffs?\b|trade war|tanker|hormuz|shipping disruption|\bgdp\b|earnings|payroll|unemployment|\bjobs?\b/.test(
+      normalized,
+    );
 
-  if (/ceasefire|peace deal|de-escalation/.test(normalized)) {
-    impacts.set("Oil", "down");
-    impacts.set("Stocks", "up");
-    impacts.set("Gold", "down");
-    affectedAssets.add("Oil");
-    affectedAssets.add("Stocks");
-    affectedAssets.add("Gold");
-  }
+  // A geopolitical word by itself is not a stock-market catalyst. The headline
+  // must also name a financial, macro, commodity, or supply-chain connection.
+  if (!hasMarketContext) return null;
 
-  if (/sanction|war|conflict|iran/.test(normalized)) {
-    if (!impacts.has("Gold")) impacts.set("Gold", "up");
-    if (!impacts.has("Oil")) impacts.set("Oil", "up");
-    affectedAssets.add("Gold");
-    affectedAssets.add("Oil");
-  }
+  const impacts = new Map<string, ImpactSignal>();
+  let primaryExplanation = "";
+  let primaryChange = "";
 
-  if (/inflation|consumer prices|cpi/.test(normalized)) {
-    if (!impacts.has("Inflation")) impacts.set("Inflation", "up");
-    affectedAssets.add("Inflation");
-  }
+  const useRule = (
+    matches: boolean,
+    explanation: string,
+    whatWouldChangeView: string,
+    signals: ImpactSignal[],
+  ) => {
+    if (!matches) return;
+    if (!primaryExplanation) {
+      primaryExplanation = explanation;
+      primaryChange = whatWouldChangeView;
+    }
+    signals.forEach((signal) => addImpact(impacts, signal));
+  };
 
-  if (affectedAssets.size === 0) {
-    affectedAssets.add("Markets");
-  }
+  useRule(
+    /strait of hormuz|tanker attack|shipping disruption|blocked shipping|oil supply disruption/.test(
+      normalized,
+    ),
+    "Reduced shipping capacity can tighten global oil supply, lift energy prices, raise transportation costs, and increase inflation pressure.",
+    "A verified reopening of the route, successful cargo rerouting, or evidence that supply is reaching buyers normally would weaken this view.",
+    [
+      {
+        asset: "Oil",
+        score: 85,
+        confidence: 90,
+        rationale: "A disruption at a major shipping chokepoint can reduce near-term available supply and lift crude risk premia.",
+        whatWouldChangeView: "The route reopens or cargo reroutes without meaningful delays.",
+      },
+      {
+        asset: "Gold",
+        score: 45,
+        confidence: 72,
+        rationale: "Geopolitical stress and inflation risk can increase demand for defensive assets such as gold.",
+        whatWouldChangeView: "Tensions ease and inflation expectations fall back toward target.",
+      },
+      {
+        asset: "S&P 500",
+        score: -40,
+        confidence: 68,
+        rationale: "Higher energy costs can pressure margins and reduce household purchasing power across the broad equity market.",
+        whatWouldChangeView: "The disruption proves brief or companies offset higher input costs without reducing demand.",
+      },
+      {
+        asset: "Inflation",
+        score: 70,
+        confidence: 84,
+        rationale: "More expensive fuel raises transportation, production, and distribution costs that can flow into consumer prices.",
+        whatWouldChangeView: "Oil prices normalize quickly or other disinflationary forces offset the shock.",
+      },
+      {
+        asset: "Energy stocks",
+        score: 55,
+        confidence: 75,
+        rationale: "Higher crude prices can improve revenue expectations for upstream energy producers.",
+        whatWouldChangeView: "Crude prices reverse or the disruption has no effect on physical supply.",
+      },
+    ],
+  );
 
-  const impactSummary = Array.from(impacts.entries())
-    .slice(0, 3)
-    .map(([asset, direction]) => `${asset} is ${direction.replace("-", " ")}`)
-    .join(", ");
+  useRule(
+    /opec|production cut|crude prices? (surge|jump|rise|rally)|oil prices? (surge|jump|rise|rally)|brent (surge|jump|rise|rally)/.test(
+      normalized,
+    ),
+    "A tighter oil market can raise the cost of fuel and transport, supporting energy producers while creating a headwind for inflation-sensitive consumers and businesses.",
+    "A meaningful increase in production, a demand slowdown, or a sustained fall in crude prices would weaken this view.",
+    [
+      {
+        asset: "Oil",
+        score: 72,
+        confidence: 86,
+        rationale: "Production changes and a sharp crude move directly change the balance between available supply and demand.",
+        whatWouldChangeView: "Supply expands or demand weakens enough to reverse the price move.",
+      },
+      {
+        asset: "Inflation",
+        score: 55,
+        confidence: 76,
+        rationale: "Fuel and freight costs can pass through to goods and services when oil stays elevated.",
+        whatWouldChangeView: "The oil move fades before it reaches broader consumer prices.",
+      },
+      {
+        asset: "Energy stocks",
+        score: 48,
+        confidence: 72,
+        rationale: "Higher realized prices can support cash flow and earnings expectations for energy producers.",
+        whatWouldChangeView: "Costs rise faster than selling prices or crude reverses.",
+      },
+    ],
+  );
+
+  useRule(
+    /rate hike|higher interest rates|higher-for-longer|hawkish fed|yield surge|treasury yields? (rise|jump|climb)/.test(
+      normalized,
+    ),
+    "Higher rates increase the discount rate applied to future cash flows, which can pressure growth stocks and raise the relative appeal of cash and the dollar.",
+    "A softer inflation reading, a dovish central-bank signal, or falling Treasury yields would weaken this view.",
+    [
+      {
+        asset: "Gold",
+        score: -55,
+        confidence: 78,
+        rationale: "Higher yields increase the opportunity cost of holding a non-yielding asset such as gold.",
+        whatWouldChangeView: "Real yields fall or safe-haven demand overwhelms the rate headwind.",
+      },
+      {
+        asset: "Nasdaq",
+        score: -60,
+        confidence: 84,
+        rationale: "Long-duration growth companies are more sensitive to the rate used to value distant earnings.",
+        whatWouldChangeView: "Earnings growth accelerates enough to offset the valuation pressure.",
+      },
+      {
+        asset: "Bonds",
+        score: -65,
+        confidence: 86,
+        rationale: "Rising yields generally mean falling prices for existing fixed-rate bonds.",
+        whatWouldChangeView: "Yields stabilize or decline as inflation and policy expectations cool.",
+      },
+      {
+        asset: "USD",
+        score: 55,
+        confidence: 76,
+        rationale: "Higher relative rates can attract capital toward dollar-denominated assets.",
+        whatWouldChangeView: "Other central banks turn more hawkish or US rate expectations reverse.",
+      },
+    ],
+  );
+
+  useRule(
+    /rate cut|interest rates? (fall|drop|decline)|dovish fed|fed easing|yield(s)? (fall|drop|decline)/.test(
+      normalized,
+    ),
+    "Lower rates reduce financing pressure and can improve the present value of future earnings, especially for growth companies, while reducing support for the dollar.",
+    "A hotter inflation reading, renewed rate-hike expectations, or rising Treasury yields would weaken this view.",
+    [
+      {
+        asset: "Nasdaq",
+        score: 55,
+        confidence: 82,
+        rationale: "Lower discount rates can support valuations for companies whose expected cash flows are further in the future.",
+        whatWouldChangeView: "Earnings disappoint or rate expectations turn higher again.",
+      },
+      {
+        asset: "S&P 500",
+        score: 30,
+        confidence: 70,
+        rationale: "Cheaper financing can support demand and valuation across the broad equity market.",
+        whatWouldChangeView: "The rate cut signals a sharper economic slowdown rather than a soft landing.",
+      },
+      {
+        asset: "Bonds",
+        score: 55,
+        confidence: 82,
+        rationale: "Falling yields generally lift prices for existing fixed-rate bonds.",
+        whatWouldChangeView: "Inflation pushes yields back up.",
+      },
+      {
+        asset: "USD",
+        score: -35,
+        confidence: 68,
+        rationale: "Lower relative yields can reduce the incentive to hold dollar-denominated assets.",
+        whatWouldChangeView: "Safe-haven demand or stronger US growth supports the dollar anyway.",
+      },
+    ],
+  );
+
+  useRule(
+    /ceasefire|peace deal|de-escalation|tensions ease|conflict ends/.test(normalized),
+    "A credible reduction in conflict risk can lower the premium in energy and defensive assets while improving risk appetite for equities.",
+    "A breach of the agreement, renewed attacks, or evidence that supply routes remain disrupted would weaken this view.",
+    [
+      {
+        asset: "Oil",
+        score: -45,
+        confidence: 74,
+        rationale: "Less disruption risk can reduce the geopolitical premium embedded in crude prices.",
+        whatWouldChangeView: "Physical supply remains blocked or hostilities resume.",
+      },
+      {
+        asset: "Gold",
+        score: -25,
+        confidence: 62,
+        rationale: "Lower immediate safe-haven demand can reduce support for gold.",
+        whatWouldChangeView: "The agreement lacks credibility or another risk event emerges.",
+      },
+      {
+        asset: "S&P 500",
+        score: 35,
+        confidence: 70,
+        rationale: "Lower geopolitical risk can improve confidence in earnings, trade, and risk-taking.",
+        whatWouldChangeView: "The ceasefire does not hold or economic damage is already entrenched.",
+      },
+    ],
+  );
+
+  useRule(
+    /\bsanctions?\b|\bwar\b|armed conflict|missile|airstrike|military escalation|\biran\b.*(oil|nuclear|conflict|tension)|\bconflict\b.*\biran\b/.test(
+      normalized,
+    ),
+    "Escalating geopolitical risk can disrupt commodities, increase demand for defensive assets, and reduce appetite for risk-sensitive equities.",
+    "De-escalation, a durable diplomatic agreement, or evidence that physical supply is unaffected would weaken this view.",
+    [
+      {
+        asset: "Oil",
+        score: 40,
+        confidence: 67,
+        rationale: "Sanctions and conflict can restrict supply, shipping, or counterparties in energy markets.",
+        whatWouldChangeView: "Supply flows normally or sanctions are rolled back.",
+      },
+      {
+        asset: "Gold",
+        score: 40,
+        confidence: 72,
+        rationale: "Investors often seek liquid defensive assets when policy and geopolitical outcomes become less certain.",
+        whatWouldChangeView: "Risk premia fall as diplomacy improves.",
+      },
+      {
+        asset: "S&P 500",
+        score: -30,
+        confidence: 64,
+        rationale: "Escalation can raise input costs and reduce confidence in global growth and earnings.",
+        whatWouldChangeView: "The event stays contained and earnings expectations remain intact.",
+      },
+    ],
+  );
+
+  useRule(
+    /inflation|consumer prices|cpi|ppi|producer prices|price pressures/.test(normalized),
+    "Inflation data changes expectations for interest rates, purchasing power, and the value of future cash flows across markets.",
+    "A follow-up inflation reading that reverses the trend, or a clear drop in inflation expectations, would weaken this view.",
+    [
+      {
+        asset: "Inflation",
+        score: 60,
+        confidence: 88,
+        rationale: "The headline directly reports on the pace or pressure of price growth.",
+        whatWouldChangeView: "Subsequent data shows the pressure was temporary.",
+      },
+      {
+        asset: "Bonds",
+        score: -35,
+        confidence: 70,
+        rationale: "Persistent price pressure can keep policy and yields higher, weighing on bond prices.",
+        whatWouldChangeView: "Inflation cools and yields fall.",
+      },
+      {
+        asset: "Gold",
+        score: 30,
+        confidence: 64,
+        rationale: "Gold can benefit from concern about purchasing-power erosion, although higher real yields can offset that support.",
+        whatWouldChangeView: "Real yields rise or inflation expectations fall.",
+      },
+      {
+        asset: "S&P 500",
+        score: -25,
+        confidence: 66,
+        rationale: "Sticky inflation can keep rates elevated and pressure equity valuations and consumer demand.",
+        whatWouldChangeView: "Inflation cools without a material earnings slowdown.",
+      },
+    ],
+  );
+
+  useRule(
+    /tariff|trade war|import duty|export ban|trade restrictions/.test(normalized),
+    "Trade restrictions can raise input costs, disrupt supply chains, and change earnings expectations across globally exposed companies.",
+    "A negotiated rollback, exemption, or evidence that companies can absorb the cost without reducing demand would weaken this view.",
+    [
+      {
+        asset: "S&P 500",
+        score: -45,
+        confidence: 76,
+        rationale: "Tariffs can pressure margins and raise uncertainty for companies with cross-border supply chains.",
+        whatWouldChangeView: "The policy is delayed, narrowed, or absorbed without earnings damage.",
+      },
+      {
+        asset: "Nasdaq",
+        score: -50,
+        confidence: 72,
+        rationale: "Technology companies often have complex global manufacturing and revenue exposure.",
+        whatWouldChangeView: "Exemptions protect key technology supply chains.",
+      },
+      {
+        asset: "Inflation",
+        score: 35,
+        confidence: 66,
+        rationale: "Import costs can pass through to businesses and consumers.",
+        whatWouldChangeView: "Trade flows reroute without higher final prices.",
+      },
+    ],
+  );
+
+  useRule(
+    /jobs report|nonfarm payroll|unemployment rate|labor market|jobless claims|payrolls/.test(
+      normalized,
+    ),
+    "Labor-market data changes expectations for household demand and the path of interest rates, which can move both stocks and bonds.",
+    "A later report that materially revises the signal, or a clear shift in inflation, would weaken this view.",
+    [
+      {
+        asset: "S&P 500",
+        score: 30,
+        confidence: 62,
+        rationale: "A resilient labor market can support consumer spending and company revenue, unless it keeps rates too high.",
+        whatWouldChangeView: "Growth weakens sharply or rates stay restrictive for longer.",
+      },
+      {
+        asset: "Bonds",
+        score: -25,
+        confidence: 60,
+        rationale: "Strong labor data can reduce expectations for near-term rate cuts and lift yields.",
+        whatWouldChangeView: "The data is revised lower or inflation falls quickly.",
+      },
+    ],
+  );
+
+  const impactList = Array.from(impacts.entries()).map(([asset, signal]) => ({
+    ...signal,
+    asset,
+    direction: directionForScore(signal.score),
+  }));
+  const hasStockImpact = impactList.some(
+    (impact) => impact.asset === "S&P 500" || impact.asset === "Nasdaq" || /stocks?/i.test(impact.asset),
+  );
+  if (!hasStockImpact) return null;
 
   return {
-    affectedAssets: Array.from(affectedAssets),
-    impacts: Array.from(impacts.entries()).map(([asset, direction]) => ({
-      asset,
-      direction,
-    })),
-    explanation: impactSummary
-      ? `This headline may matter because ${impactSummary}. These are scenario-based signals, not certain predictions.`
-      : "The market connection is still developing. Watch follow-on headlines and price action rather than treating this as a forecast.",
+    affectedAssets: impactList.map((impact) => impact.asset),
+    impacts: impactList,
+    explanation:
+      primaryExplanation ||
+      "This headline directly references a market-moving economic or financial catalyst, but the first-order effect is mixed.",
+    whatWouldChangeView:
+      primaryChange ||
+      "A follow-up release or price move that contradicts the initial catalyst would weaken this view.",
   };
 }
 
@@ -235,11 +563,13 @@ export async function getNews(limit = 8): Promise<{
   }
 
   const apiKey = requireApiKey("NEWS_API_KEY");
+  const fetchLimit = Math.max(20, limit * 4);
   const params = new URLSearchParams({
     q: NEWS_QUERY,
     language: "en",
     sortBy: "publishedAt",
-    pageSize: String(limit),
+    searchIn: "title",
+    pageSize: String(fetchLimit),
     apiKey,
   });
   const payload = await fetchJson<{
@@ -258,6 +588,7 @@ export async function getNews(limit = 8): Promise<{
     .map((article, index) => {
       const headline = article.title!.replace(/\s+-\s+[^-]+$/, "").trim();
       const analysis = analyzeArticle(headline);
+      if (!analysis) return null;
       return {
         id: `${article.publishedAt}-${index}`,
         headline,
@@ -267,7 +598,9 @@ export async function getNews(limit = 8): Promise<{
         imageUrl: article.urlToImage ?? null,
         ...analysis,
       };
-    });
+    })
+    .filter((article): article is NewsArticle => article !== null)
+    .slice(0, limit);
 
   const value = {
     articles,

@@ -1,1 +1,2 @@
 - [Market data rate limits](market-data-rate-limits.md) — Alpha Vantage free-tier calls must stay serialized and cached server-side.
+- [Market news filtering](market-news-filtering.md) — Headline-only, whole-word relevance gates prevent lifestyle and commerce stories from entering the market feed.

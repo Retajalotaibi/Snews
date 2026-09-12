@@ -84,6 +84,14 @@ export const GetNewsQueryParams = zod.object({
   "limit": zod.coerce.number().int().min(1).max(getNewsQueryLimitMax).default(getNewsQueryLimitDefault)
 })
 
+export const getNewsResponseArticlesItemImpactsItemScoreMin = -100;
+export const getNewsResponseArticlesItemImpactsItemScoreMax = 100;
+
+export const getNewsResponseArticlesItemImpactsItemConfidenceMin = 0;
+export const getNewsResponseArticlesItemImpactsItemConfidenceMax = 100;
+
+
+
 export const GetNewsResponse = zod.object({
   "articles": zod.array(zod.object({
   "id": zod.string(),
@@ -94,9 +102,14 @@ export const GetNewsResponse = zod.object({
   "imageUrl": zod.string().nullable(),
   "affectedAssets": zod.array(zod.string()),
   "explanation": zod.string(),
+  "whatWouldChangeView": zod.string(),
   "impacts": zod.array(zod.object({
   "asset": zod.string(),
-  "direction": zod.enum(['strong-up', 'up', 'neutral', 'down', 'strong-down'])
+  "direction": zod.enum(['strong-up', 'up', 'neutral', 'down', 'strong-down']),
+  "score": zod.number().int().min(getNewsResponseArticlesItemImpactsItemScoreMin).max(getNewsResponseArticlesItemImpactsItemScoreMax),
+  "confidence": zod.number().int().min(getNewsResponseArticlesItemImpactsItemConfidenceMin).max(getNewsResponseArticlesItemImpactsItemConfidenceMax),
+  "rationale": zod.string(),
+  "whatWouldChangeView": zod.string()
 }))
 })),
   "updatedAt": zod.string(),

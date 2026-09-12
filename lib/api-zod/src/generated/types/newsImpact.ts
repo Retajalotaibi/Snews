@@ -10,4 +10,16 @@ import type { NewsImpactDirection } from './newsImpactDirection';
 export interface NewsImpact {
   asset: string;
   direction: NewsImpactDirection;
+  /**
+     * @minimum -100
+     * @maximum 100
+     */
+  score: number;
+  /**
+     * @minimum 0
+     * @maximum 100
+     */
+  confidence: number;
+  rationale: string;
+  whatWouldChangeView: string;
 }

@@ -182,9 +182,25 @@ components:
         direction:
           type: string
           enum: [strong-up, up, neutral, down, strong-down]
+        score:
+          type: integer
+          minimum: -100
+          maximum: 100
+        confidence:
+          type: integer
+          minimum: 0
+          maximum: 100
+        rationale:
+          type: string
+        whatWouldChangeView:
+          type: string
       required:
         - asset
         - direction
+        - score
+        - confidence
+        - rationale
+        - whatWouldChangeView
     NewsArticle:
       type: object
       properties:
@@ -206,6 +222,8 @@ components:
             type: string
         explanation:
           type: string
+        whatWouldChangeView:
+          type: string
         impacts:
           type: array
           items:
@@ -219,6 +237,7 @@ components:
         - imageUrl
         - affectedAssets
         - explanation
+        - whatWouldChangeView
         - impacts
     NewsResponse:
       type: object

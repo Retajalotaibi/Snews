@@ -17,5 +17,6 @@ export interface NewsArticle {
   imageUrl: string | null;
   affectedAssets: string[];
   explanation: string;
+  whatWouldChangeView: string;
   impacts: NewsImpact[];
 }
