@@ -19,10 +19,16 @@ let clientPromise: Promise<MongoClient> | null = null;
 let indexesPromise: Promise<void> | null = null;
 
 export async function getCollection() {
-  const uri = process.env.MONGODB_URI || DEFAULT_MONGODB_URI;
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    if (process.env.VERCEL || process.env.NODE_ENV === "production") {
+      throw new Error("MONGODB_URI is not configured in environment");
+    }
+  }
+  const targetUri = uri || DEFAULT_MONGODB_URI;
 
   if (!clientPromise) {
-    const client = new MongoClient(uri, {
+    const client = new MongoClient(targetUri, {
       serverSelectionTimeoutMS: 5_000,
       connectTimeoutMS: 5_000,
       appName: "MarketLens",

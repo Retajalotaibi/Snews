@@ -1,3 +1,10 @@
-import app from "../src/app";
+import crypto from "node:crypto";
+if (!globalThis.crypto) {
+  (globalThis as any).crypto = crypto.webcrypto || crypto;
+}
 
-export default app;
+import app from "../src/app.js";
+
+export default function handler(req: any, res: any) {
+  return app(req, res);
+}
