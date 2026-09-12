@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "NODE_OPTIONS=\"--require ../../scripts/node18-polyfill.cjs\" vite --config vite.config.ts --host 0.0.0.0",
-    "build": "NODE_OPTIONS=\"--require ../../scripts/node18-polyfill.cjs\" vite build --config vite.config.ts",
-    "serve": "NODE_OPTIONS=\"--require ../../scripts/node18-polyfill.cjs\" vite preview --config vite.config.ts --host 0.0.0.0",
+    "build": "vite build --config vite.config.ts",
+    "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {

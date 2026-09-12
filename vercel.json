@@ -3,17 +3,15 @@
   "version": 2,
   "buildCommand": "pnpm run build",
   "outputDirectory": "artifacts/marketlens/dist/public",
+  "installCommand": "pnpm install",
+  "framework": null,
   "rewrites": [
     {
-      "source": "/api",
+      "source": "/api/:path*",
       "destination": "/api"
     },
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
-    },
-    {
-      "source": "/(.*)",
+      "source": "/((?!api).*)",
       "destination": "/index.html"
     }
   ]
