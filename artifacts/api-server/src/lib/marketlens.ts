@@ -89,7 +89,7 @@ function requireApiKey(name: "NEWS_API_KEY" | "ALPHA_VANTAGE_API_KEY") {
 }
 
 async function fetchJson<T>(url: string, service: string): Promise<T> {
-  const response = await fetch(url);
+  const response: any = await fetch(url);
   if (!response.ok) {
     throw new Error(`${service} returned HTTP ${response.status}`);
   }

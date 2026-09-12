@@ -4,6 +4,7 @@
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",
     "noEmit": true,
+    "lib": ["es2022", "dom"],
     "types": ["node"],
     "esModuleInterop": true
   },
