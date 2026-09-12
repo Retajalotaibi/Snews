@@ -122,6 +122,37 @@ if (!globalThis.crypto) {
     `,
     },
   });
+
+  // Bundle standalone Vercel serverless function entrypoints so they are 100% self-contained
+  const serverlessTargets = [
+    path.resolve(artifactDir, "api/index.js"),
+    path.resolve(artifactDir, "../../api/index.js"),
+  ];
+
+  for (const outfile of serverlessTargets) {
+    await esbuild({
+      entryPoints: [path.resolve(artifactDir, "src/app.ts")],
+      platform: "node",
+      bundle: true,
+      format: "esm",
+      outfile,
+      logLevel: "info",
+      banner: {
+        js: `import { createRequire as __bannerCrReq } from 'node:module';
+import __bannerPath from 'node:path';
+import __bannerUrl from 'node:url';
+import __bannerCrypto from 'node:crypto';
+
+globalThis.require = __bannerCrReq(import.meta.url);
+globalThis.__filename = __bannerUrl.fileURLToPath(import.meta.url);
+globalThis.__dirname = __bannerPath.dirname(globalThis.__filename);
+if (!globalThis.crypto) {
+  globalThis.crypto = __bannerCrypto.webcrypto || __bannerCrypto;
+}
+`,
+      },
+    });
+  }
 }
 
 buildAll().catch((err) => {

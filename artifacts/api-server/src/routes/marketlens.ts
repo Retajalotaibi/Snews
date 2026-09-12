@@ -1,5 +1,9 @@
 import { Router, type IRouter } from "express";
-import { GetNewsQueryParams } from "@workspace/api-zod";
+import { z } from "zod";
+
+const GetNewsQueryParams = z.object({
+  limit: z.coerce.number().int().min(1).max(20).default(10),
+});
 import {
   getMarketComparison,
   getMarketOverview,
