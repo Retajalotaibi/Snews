@@ -7,8 +7,11 @@ import { logger } from "./lib/logger.js";
 
 const app: Express = express();
 
+// Handle both CJS namespace and ESM callable export patterns cleanly
+const createPinoHttp: any = (pinoHttp as any).default || pinoHttp;
+
 app.use(
-  pinoHttp({
+  createPinoHttp({
     logger,
     serializers: {
       req(req: IncomingMessage & { id?: unknown; url?: string }) {
