@@ -1,8 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pnpm -w run typecheck:libs && pnpm --filter @workspace/marketlens run build",
-  "outputDirectory": "artifacts/marketlens/dist/public",
+  "buildCommand": "pnpm -w run typecheck:libs && pnpm --filter @workspace/marketlens run build && mkdir -p public dist && cp -R artifacts/marketlens/dist/public/. public/ && cp -R artifacts/marketlens/dist/public/. dist/",
+  "outputDirectory": "public",
   "installCommand": "pnpm install",
   "framework": null,
   "rewrites": [
