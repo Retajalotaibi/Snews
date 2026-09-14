@@ -1,13 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "buildCommand": "pnpm run build",
+  "buildCommand": "pnpm run typecheck:libs && pnpm --filter @workspace/marketlens run build",
   "outputDirectory": "artifacts/marketlens/dist/public",
-  "installCommand": "pnpm install --frozen-lockfile",
+  "installCommand": "pnpm install",
   "framework": null,
   "rewrites": [
-    { "source": "/api",          "destination": "/api" },
-    { "source": "/api/:path*",   "destination": "/api" },
-    { "source": "/(.*)",         "destination": "/index.html" }
+    { "source": "/api/:path*", "destination": "/api" },
+    { "source": "/(.*)",       "destination": "/index.html" }
   ]
 }
