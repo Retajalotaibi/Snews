@@ -9,6 +9,7 @@
     "dev:server": "pnpm --filter @workspace/api-server run dev",
     "dev:web": "pnpm --filter @workspace/marketlens run dev",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
+    "build:vercel": "pnpm --filter @workspace/marketlens run build && node -e \"const fs = require('fs'); fs.mkdirSync('public', {recursive: true}); fs.cpSync('artifacts/marketlens/dist/public', 'public', {recursive: true});\"",
     "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "typecheck:libs": "tsc --build --force",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
